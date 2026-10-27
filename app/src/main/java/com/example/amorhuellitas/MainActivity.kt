@@ -1,311 +1,489 @@
 package com.example.amorhuellitas
 
+import android.app.Activity
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.util.Calendar
 
-// ---------------------------------------------------------------
-// PALETA DE COLORES "AMOR & HUELLITAS" (sacada del logo)
-// ---------------------------------------------------------------
-val VerdeOliva = Color(0xFF74743D)     // fondo principal del logo
-val Marron = Color(0xFF503116)         // texto, bordes y detalles oscuros
-val Dorado = Color(0xFFCD985D)         // pelaje del perrito
-val BeigeCrema = Color(0xFFEDDCBF)     // huellita y detalles claros
-val Blanco = Color(0xFFFFFFFF)         // bordes y fondo alternativo
-val MarronOscuro = Color(0xFF381B09)   // contornos y zonas oscuras
-
-// ---------------------------------------------------------------
-// PANTALLAS DE LA APP
-// Tu compañero agrega aquí las que le faltan (por ejemplo RESUMEN).
-// ---------------------------------------------------------------
-enum class Pantalla { INICIO, AGENDAR, SERVICIOS }
-
-// ---------------------------------------------------------------
-// ACTIVITY PRINCIPAL
-// ---------------------------------------------------------------
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             MaterialTheme {
-                AppHuellitas()
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    VeterinariaApp()
+                }
             }
         }
     }
 }
 
-// ---------------------------------------------------------------
-// NAVEGACIÓN controlada por estado
-// `pantallaActual` decide qué pantalla se muestra.
-// rememberSaveable la conserva al rotar el teléfono.
-// ---------------------------------------------------------------
+enum class Pantalla { INICIO, AGENDAR, SERVICIOS }
+
 @Composable
-fun AppHuellitas() {
-    var pantallaActual by rememberSaveable { mutableStateOf(Pantalla.INICIO) }
-    val activity = LocalActivity.current
+fun VeterinariaApp() {
+    val context = LocalContext.current
+    var pantallaActual by remember { mutableStateOf(Pantalla.INICIO) }
 
     when (pantallaActual) {
         Pantalla.INICIO -> PantallaInicio(
-            onAgendarCita = { pantallaActual = Pantalla.AGENDAR },
+            onAgendar = { pantallaActual = Pantalla.AGENDAR },
             onServicios = { pantallaActual = Pantalla.SERVICIOS },
-            onSalir = { activity?.finish() }   // cierra la aplicación
+            onSalir = { (context as? Activity)?.finish() }
         )
-
-        // TODO (compañero): reemplazar por la pantalla del formulario
-        Pantalla.AGENDAR -> PantallaTemporal(
-            titulo = "Agendar cita",
-            onVolver = { pantallaActual = Pantalla.INICIO }
+        Pantalla.AGENDAR -> PantallaAgendar(
+            onCancelar = { pantallaActual = Pantalla.INICIO }
         )
-
-        // TODO (compañero): reemplazar por la pantalla de servicios
-        Pantalla.SERVICIOS -> PantallaTemporal(
-            titulo = "Nuestros servicios",
-            onVolver = { pantallaActual = Pantalla.INICIO }
+        Pantalla.SERVICIOS -> PantallaServicios(
+            onVolverInicio = { pantallaActual = Pantalla.INICIO }
         )
     }
 }
 
-// ---------------------------------------------------------------
-// PANTALLA DE INICIO  (esta es TU parte)
-// Muestra: fondo de huellitas + logo + 3 botones.
-// No navega por sí sola: recibe "eventos" (lambdas) desde afuera.
-// ---------------------------------------------------------------
 @Composable
 fun PantallaInicio(
-    onAgendarCita: () -> Unit,
+    onAgendar: () -> Unit,
     onServicios: () -> Unit,
     onSalir: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(VerdeOliva)
-    ) {
-        // Fondo decorativo de huellitas
-        FondoHuellitas()
-
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.logo_huellitas),
+            contentDescription = "Fondo de veterinaria",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF74743D).copy(alpha = 0.85f)))
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .systemBarsPadding()
-                .padding(horizontal = 32.dp, vertical = 24.dp),
+            modifier = Modifier.fillMaxSize().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo circular con borde blanco
             Image(
                 painter = painterResource(id = R.drawable.logo_huellitas),
-                contentDescription = "Logo de Amor & Huellitas",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(240.dp)
-                    .clip(CircleShape)
-                    .border(4.dp, Blanco, CircleShape)
+                contentDescription = "Logo de la veterinaria",
+                modifier = Modifier.size(160.dp).clip(RoundedCornerShape(20.dp))
             )
-
             Spacer(modifier = Modifier.height(20.dp))
+            Text("Amor & Huellitas", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("Cuidamos a quienes más quieres", fontSize = 17.sp, color = Color(0xFFEDDCBF))
+            Spacer(modifier = Modifier.height(35.dp))
 
-            Text(
-                text = "Cuidamos a quienes más quieres",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = BeigeCrema,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Los tres botones tienen el mismo ancho y alto
-            val tamBoton = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-            val formaBoton = RoundedCornerShape(16.dp)
-
-            // 1. Agendar cita (botón principal, color dorado)
             Button(
-                onClick = onAgendarCita,
-                modifier = tamBoton,
-                shape = formaBoton,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Dorado,
-                    contentColor = MarronOscuro
-                )
-            ) {
-                Text("Agendar cita", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
+                onClick = onAgendar,
+                modifier = Modifier.fillMaxWidth().height(55.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCD985D))
+            ) { Text("Agendar Cita", fontSize = 17.sp, color = Color(0xFF381B09), fontWeight = FontWeight.Bold) }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 2. Nuestros servicios (botón secundario, beige)
+            Spacer(modifier = Modifier.height(14.dp))
             Button(
                 onClick = onServicios,
-                modifier = tamBoton,
-                shape = formaBoton,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BeigeCrema,
-                    contentColor = Marron
-                )
-            ) {
-                Text("Nuestros servicios", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 3. Salir (botón con solo borde)
+                modifier = Modifier.fillMaxWidth().height(55.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEDDCBF))
+            ) { Text("Nuestros servicios", fontSize = 17.sp, color = Color(0xFF503116), fontWeight = FontWeight.Bold) }
+            Spacer(modifier = Modifier.height(14.dp))
             OutlinedButton(
                 onClick = onSalir,
-                modifier = tamBoton,
-                shape = formaBoton,
-                border = BorderStroke(2.dp, BeigeCrema),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = BeigeCrema)
-            ) {
-                Text("Salir", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
+                modifier = Modifier.fillMaxWidth().height(55.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+            ) { Text("Salir", fontSize = 17.sp) }
         }
     }
 }
 
-// ---------------------------------------------------------------
-// FONDO: patrón de huellitas dibujado con Canvas
-// (no necesita ninguna imagen, se dibuja con código)
-// ---------------------------------------------------------------
 @Composable
-fun FondoHuellitas(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val paso = 150.dp.toPx()   // separación entre huellitas
-        val tam = 34.dp.toPx()     // tamaño de cada huellita
-        var fila = 0
-        var y = 40.dp.toPx()
-        while (y < size.height + paso) {
-            // Las filas impares se desplazan para que el patrón se vea natural
-            var x = (if (fila % 2 == 0) 0f else paso / 2) + 40.dp.toPx()
-            while (x < size.width + paso) {
-                // Giramos cada huellita un poco, a un lado y a otro
-                rotate(degrees = if (fila % 2 == 0) -20f else 20f, pivot = Offset(x, y)) {
-                    dibujarHuella(Offset(x, y), tam)
-                }
-                x += paso
-            }
-            y += paso * 0.8f
-            fila++
-        }
+fun PantallaAgendar(onCancelar: () -> Unit) {
+    val context = LocalContext.current
+    val db = remember { CitaDatabase(context.applicationContext) }
+
+    var idSeleccionado by remember { mutableStateOf(0) }
+    var nombre by remember { mutableStateOf("") }
+    var telefono by remember { mutableStateOf("") }
+    var fecha by remember { mutableStateOf("") }
+    var hora by remember { mutableStateOf("") }
+    var raza by remember { mutableStateOf("") }
+    var tamano by remember { mutableStateOf("") }
+    var citas by remember { mutableStateOf(emptyList<Cita>()) }
+    var mostrarError by remember { mutableStateOf(false) }
+    var mostrarConfirmacionEliminar by remember { mutableStateOf(false) }
+    var consultaRealizada by remember { mutableStateOf(false) }
+
+    fun cargarCitas() {
+        citas = db.consultarTodas()
+        consultaRealizada = true
     }
-}
 
-/** Dibuja una huellita: una almohadilla grande y cuatro deditos. */
-private fun DrawScope.dibujarHuella(centro: Offset, tam: Float) {
-    val color = BeigeCrema.copy(alpha = 0.14f)
-
-    // Almohadilla principal
-    drawOval(
-        color = color,
-        topLeft = Offset(centro.x - tam * 0.5f, centro.y - tam * 0.05f),
-        size = Size(tam, tam * 0.8f)
-    )
-
-    // Cuatro deditos
-    val dedos = listOf(
-        Offset(-0.62f, -0.25f),
-        Offset(-0.22f, -0.62f),
-        Offset(0.22f, -0.62f),
-        Offset(0.62f, -0.25f)
-    )
-    dedos.forEach { d ->
-        drawOval(
-            color = color,
-            topLeft = Offset(
-                centro.x + d.x * tam - tam * 0.17f,
-                centro.y + d.y * tam - tam * 0.22f
-            ),
-            size = Size(tam * 0.34f, tam * 0.44f)
-        )
+    fun limpiarFormulario() {
+        idSeleccionado = 0
+        nombre = ""
+        telefono = ""
+        fecha = ""
+        hora = ""
+        raza = ""
+        tamano = ""
     }
-}
 
-// ---------------------------------------------------------------
-// PANTALLA TEMPORAL: solo sirve para probar que los botones del
-// inicio navegan. Se borra cuando estén las pantallas reales.
-// ---------------------------------------------------------------
-@Composable
-fun PantallaTemporal(titulo: String, onVolver: () -> Unit) {
+    fun cargarCita(cita: Cita) {
+        idSeleccionado = cita.id
+        nombre = cita.nombre
+        telefono = cita.telefono
+        fecha = cita.fecha
+        hora = cita.hora
+        raza = cita.raza
+        tamano = cita.tamano
+    }
+
+    val calendar = Calendar.getInstance()
+
+    fun seleccionarFecha() {
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                fecha = String.format("%02d/%02d/%04d", day, month + 1, year)
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+
+    fun seleccionarHora() {
+        TimePickerDialog(
+            context,
+            { _, hour, minute -> hora = String.format("%02d:%02d", hour, minute) },
+            calendar.get(Calendar.HOUR_OF_DAY),
+            calendar.get(Calendar.MINUTE),
+            true
+        ).show()
+    }
+
+    LaunchedEffect(Unit) { cargarCitas() }
+
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BeigeCrema)
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)
     ) {
+        Text("Agendar Cita", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color(0xFF503116))
         Text(
-            text = titulo,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = Marron
+            if (idSeleccionado == 0) "Complete el formulario para registrar una cita."
+            else "Editando la cita número $idSeleccionado",
+            color = Color.Gray
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = nombre, onValueChange = { nombre = it },
+            modifier = Modifier.fillMaxWidth(), label = { Text("Nombre del propietario") },
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedTextField(
+            value = telefono, onValueChange = { telefono = it },
+            modifier = Modifier.fillMaxWidth(), label = { Text("Número de teléfono") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedTextField(
+            value = fecha, onValueChange = {}, modifier = Modifier.fillMaxWidth(),
+            label = { Text("Fecha de la cita") }, readOnly = true,
+            trailingIcon = { TextButton(onClick = { seleccionarFecha() }) { Text("Elegir") } }
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedTextField(
+            value = hora, onValueChange = {}, modifier = Modifier.fillMaxWidth(),
+            label = { Text("Hora de la cita") }, readOnly = true,
+            trailingIcon = { TextButton(onClick = { seleccionarHora() }) { Text("Elegir") } }
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedTextField(
+            value = raza, onValueChange = { raza = it },
+            modifier = Modifier.fillMaxWidth(), label = { Text("Raza de la mascota") },
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedTextField(
+            value = tamano, onValueChange = { tamano = it },
+            modifier = Modifier.fillMaxWidth(), label = { Text("Tamaño de la mascota") },
+            placeholder = { Text("Pequeña, mediana o grande") }, singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(18.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = {
+                    if (nombre.isBlank() || telefono.isBlank() || fecha.isBlank() ||
+                        hora.isBlank() || raza.isBlank() || tamano.isBlank()
+                    ) {
+                        mostrarError = true
+                    } else {
+                        val resultado = db.insertar(
+                            Cita(
+                                nombre = nombre.trim(), telefono = telefono.trim(),
+                                fecha = fecha, hora = hora, raza = raza.trim(), tamano = tamano.trim()
+                            )
+                        )
+                        if (resultado != -1L) {
+                            Toast.makeText(context, "Cita guardada correctamente", Toast.LENGTH_SHORT).show()
+                            limpiarFormulario()
+                            cargarCitas()
+                        } else {
+                            Toast.makeText(context, "No fue posible guardar la cita", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF717D45))
+            ) { Text("Guardar") }
+
+            Button(
+                onClick = {
+                    if (idSeleccionado == 0) {
+                        Toast.makeText(context, "Seleccione una cita de la lista para editar", Toast.LENGTH_SHORT).show()
+                    } else if (nombre.isBlank() || telefono.isBlank() || fecha.isBlank() ||
+                        hora.isBlank() || raza.isBlank() || tamano.isBlank()
+                    ) {
+                        mostrarError = true
+                    } else {
+                        val filas = db.actualizar(
+                            Cita(idSeleccionado, nombre.trim(), telefono.trim(), fecha, hora, raza.trim(), tamano.trim())
+                        )
+                        if (filas > 0) {
+                            Toast.makeText(context, "Cita actualizada", Toast.LENGTH_SHORT).show()
+                            limpiarFormulario()
+                            cargarCitas()
+                        } else {
+                            Toast.makeText(context, "No se pudo actualizar la cita", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF503116))
+            ) { Text("Editar") }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = {
+                    if (idSeleccionado == 0) {
+                        Toast.makeText(context, "Seleccione una cita de la lista para eliminar", Toast.LENGTH_SHORT).show()
+                    } else {
+                        mostrarConfirmacionEliminar = true
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) { Text("Eliminar") }
+
+            OutlinedButton(
+                onClick = { cargarCitas() },
+                modifier = Modifier.weight(1f)
+            ) { Text("Consultar") }
+        }
+
+        OutlinedButton(
+            onClick = { limpiarFormulario() },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Limpiar formulario") }
+
+        Spacer(modifier = Modifier.height(20.dp))
+        Text("Citas registradas", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF503116))
+        Text(
+            if (consultaRealizada) "Registros encontrados: ${citas.size}"
+            else "Pulse Consultar para ver los registros.",
+            color = Color.Gray
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "(pantalla pendiente)", color = Marron)
-        Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = onVolver,
-            colors = ButtonDefaults.buttonColors(containerColor = VerdeOliva)
-        ) {
+
+        if (citas.isEmpty()) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "No hay citas registradas. Complete el formulario y pulse Guardar.",
+                    modifier = Modifier.padding(16.dp),
+                    color = Color.Gray
+                )
+            }
+        } else {
+            citas.forEach { cita ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)
+                        .clickable { cargarCita(cita) },
+                    shape = RoundedCornerShape(14.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                        Text("Cita #${cita.id} · ${cita.nombre}", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color(0xFF503116))
+                        Text("Teléfono: ${cita.telefono}")
+                        Text("Fecha: ${cita.fecha}    Hora: ${cita.hora}")
+                        Text("Mascota: ${cita.raza} · Tamaño: ${cita.tamano}")
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "Toque este registro para cargarlo en el formulario",
+                            color = Color(0xFF717D45), fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedButton(onClick = onCancelar, modifier = Modifier.fillMaxWidth().height(50.dp)) {
             Text("Volver al inicio")
         }
     }
+
+    if (mostrarError) {
+        AlertDialog(
+            onDismissRequest = { mostrarError = false },
+            title = { Text("Datos incompletos") },
+            text = { Text("Debe completar todos los campos antes de guardar o editar la cita.") },
+            confirmButton = {
+                TextButton(onClick = { mostrarError = false }) { Text("Aceptar") }
+            }
+        )
+    }
+
+    if (mostrarConfirmacionEliminar) {
+        AlertDialog(
+            onDismissRequest = { mostrarConfirmacionEliminar = false },
+            title = { Text("Eliminar cita") },
+            text = { Text("¿Está seguro de que desea eliminar la cita número $idSeleccionado?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val filas = db.eliminar(idSeleccionado)
+                    mostrarConfirmacionEliminar = false
+                    if (filas > 0) {
+                        Toast.makeText(context, "Cita eliminada", Toast.LENGTH_SHORT).show()
+                        limpiarFormulario()
+                        cargarCitas()
+                    } else {
+                        Toast.makeText(context, "No se pudo eliminar la cita", Toast.LENGTH_SHORT).show()
+                    }
+                }) { Text("Sí, eliminar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarConfirmacionEliminar = false }) { Text("Cancelar") }
+            }
+        )
+    }
 }
 
-// ---------------------------------------------------------------
-// PREVIEW (vista previa en Android Studio)
-// ---------------------------------------------------------------
-@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun PantallaInicioPreview() {
+fun PantallaServicios(onVolverInicio: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.logo_huellitas),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Box(modifier = Modifier.fillMaxSize().background(Color(0xFFEEDEC2).copy(alpha = 0.95f)))
+        Column(
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.logo_huellitas),
+                contentDescription = "Logo de la veterinaria",
+                modifier = Modifier.size(100.dp).align(Alignment.CenterHorizontally).clip(RoundedCornerShape(15.dp))
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                "Nuestros servicios", fontSize = 28.sp, fontWeight = FontWeight.Bold,
+                color = Color(0xFF503116),
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Servicio("Consulta veterinaria", "Evaluación general y seguimiento de la salud de su mascota.")
+            Servicio("Vacunación", "Aplicación y control del calendario de vacunas.")
+            Servicio("Desparasitación", "Prevención y tratamiento de parásitos.")
+            Servicio("Baño y peluquería", "Higiene, baño y cuidado estético de su mascota.")
+            Servicio("Emergencias veterinarias", "Atención para situaciones que requieren asistencia inmediata.")
+            Servicio("Cirugía", "Procedimientos quirúrgicos realizados por profesionales.")
+            Servicio("Control de mascotas", "Seguimiento periódico para mantener una buena salud.")
+            Spacer(modifier = Modifier.height(20.dp))
+            Button(
+                onClick = onVolverInicio,
+                modifier = Modifier.fillMaxWidth().height(55.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF717D45))
+            ) { Text("Volver al inicio", fontSize = 17.sp, color = Color.White, fontWeight = FontWeight.Bold) }
+        }
+    }
+}
+
+@Composable
+fun Servicio(titulo: String, descripcion: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        shape = RoundedCornerShape(15.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(titulo, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF503116))
+            Spacer(modifier = Modifier.height(5.dp))
+            Text(descripcion, color = Color.Gray)
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, name = "Pantalla Inicio")
+@Composable
+fun PreviewPantallaInicio() {
     MaterialTheme {
-        PantallaInicio(onAgendarCita = {}, onServicios = {}, onSalir = {})
+        PantallaInicio(onAgendar = {}, onServicios = {}, onSalir = {})
     }
 }
